@@ -50,7 +50,6 @@ const blogSchema = new mongoose.Schema({
 });
 const Blog = mongoose.model('Blog', blogSchema);
 
-const mongoose = require('mongoose');
 
 // Subscription Schema
 const subscriptionSchema = new mongoose.Schema({
