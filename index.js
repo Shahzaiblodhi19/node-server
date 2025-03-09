@@ -50,6 +50,47 @@ const blogSchema = new mongoose.Schema({
 });
 const Blog = mongoose.model('Blog', blogSchema);
 
+const mongoose = require('mongoose');
+
+// Subscription Schema
+const subscriptionSchema = new mongoose.Schema({
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+    },
+});
+
+const Subscription = mongoose.model('Subscription', subscriptionSchema);
+
+// Route to handle subscription
+app.post('/api/subscribe', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+    }
+
+    try {
+        // Check if the email already exists
+        const existingSubscription = await Subscription.findOne({ email });
+
+        if (existingSubscription) {
+            return res.status(400).json({ error: 'This email is already subscribed' });
+        }
+
+        // Save the email to the database
+        const newSubscription = new Subscription({ email });
+        await newSubscription.save();
+
+        res.status(200).json({ message: 'Successfully subscribed!' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'An error occurred while subscribing' });
+    }
+});
+
+
 // API Routes
 
 // Route to create a new blog
