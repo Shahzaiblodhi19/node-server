@@ -4,6 +4,15 @@ const multer = require('multer');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: 'drctsmsw4',
+    api_key: '231138469193135',
+    api_secret: 'ddcg3JyPkmsVRX67D0dGy4Zi9aQ', // Replace this with your actual secret
+});
 
 // Initialize express app
 const app = express();
@@ -29,16 +38,16 @@ mongoose.connect('mongodb+srv://Shahzaiblodhi2233:Shahzaib12212021@cluster0.hu3o
         console.error('Failed to connect to MongoDB:', err);
     });
 
-// Set up file upload using Multer
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Upload directory
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'blogs',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+        public_id: (req, file) => Date.now() + '-' + file.originalname.split('.')[0]
     },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname); // Save file with a unique name
-    }
 });
 const upload = multer({ storage });
+
 
 // Blog Schema
 const blogSchema = new mongoose.Schema({
@@ -57,12 +66,19 @@ const Blog = mongoose.model('Blog', blogSchema);
 app.post('/api/blogs', upload.single('image'), async (req, res) => {
     try {
         const { title, subHeading, date, description } = req.body;
-        const image = req.file ? req.file.filename : null;
+        const image = req.file ? req.file.path : null;
 
         const newBlog = new Blog({ title, subHeading, image, date, description });
         await newBlog.save();
 
-        res.status(201).json({ message: 'Blog created successfully', newBlog });
+        res.status(201).json({
+            message: 'Blog created successfully',
+            newBlog: {
+                ...newBlog.toObject(),
+                image: image, // Already full URL
+            },
+        });
+
     } catch (err) {
         res.status(500).json({ error: 'Failed to create blog' });
     }
@@ -120,11 +136,7 @@ app.put('/api/blogs/:id', upload.single('image'), async (req, res) => {
         if (req.file) {
             // Delete the old image file from the server if it's updated
             const fs = require('fs');
-            const oldImagePath = path.join(__dirname, 'uploads', blog.image);
-            if (fs.existsSync(oldImagePath)) {
-                fs.unlinkSync(oldImagePath); // Remove the old image file
-            }
-            image = req.file.filename; // Use the new uploaded image
+            image = req.file.path; // New URL
         }
 
         // Update the blog data
@@ -142,9 +154,10 @@ app.put('/api/blogs/:id', upload.single('image'), async (req, res) => {
             message: 'Blog updated successfully',
             updatedBlog: {
                 ...blog.toObject(),
-                image: blog.image ? `http://localhost:5000/uploads/${blog.image}` : null
+                image: blog.image || null, // Already a full URL from Cloudinary
             }
         });
+
 
     } catch (err) {
         console.error(err);
